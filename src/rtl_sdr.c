@@ -80,11 +80,26 @@ static void sighandler(int signum)
 }
 #endif
 
+uint32_t frequency = 100000000;
+
 static void rtlsdr_callback(unsigned char *buf, uint32_t len, void *ctx)
 {
 	if (ctx) {
 		if (do_exit)
 			return;
+
+		frequency += 50000; // 50k shift
+		verbose_set_frequency(dev, frequency);
+		/*
+		Reading samples in async mode...
+		rtlsdr_demod_write_reg failed with -6
+		rtlsdr_demod_read_reg failed with -6
+		r82xx_write: i2c wr failed=-6 reg=17 len=1
+		r82xx_set_freq: failed=-6
+		rtlsdr_demod_write_reg failed with -6
+		rtlsdr_demod_read_reg failed with -6
+		WARNING: Failed to set center freq.
+		*/
 
 		if ((bytes_to_read > 0) && (bytes_to_read < len)) {
 			len = bytes_to_read;
@@ -117,7 +132,6 @@ int main(int argc, char **argv)
 	uint8_t *buffer;
 	int dev_index = 0;
 	int dev_given = 0;
-	uint32_t frequency = 100000000;
 	uint32_t samp_rate = DEFAULT_SAMPLE_RATE;
 	uint32_t out_block_size = DEFAULT_BUF_LENGTH;
 
