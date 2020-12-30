@@ -42,6 +42,7 @@
 static int do_exit = 0;
 static uint32_t bytes_to_read = 0;
 static rtlsdr_dev_t *dev = NULL;
+static uint32_t frequency = 100000000;
 
 void usage(void)
 {
@@ -74,6 +75,10 @@ sighandler(int signum)
 #else
 static void sighandler(int signum)
 {
+	if (signum == SIGALRM) {
+		frequency += 50000; // 50k shift
+		verbose_set_frequency(dev, frequency);
+	}
 	fprintf(stderr, "Signal caught, exiting!\n");
 	do_exit = 1;
 	rtlsdr_cancel_async(dev);
@@ -82,6 +87,7 @@ static void sighandler(int signum)
 
 static void rtlsdr_callback(unsigned char *buf, uint32_t len, void *ctx)
 {
+	fprintf(stderr, "rtlsdr_callback() enter\n");
 	if (ctx) {
 		if (do_exit)
 			return;
@@ -100,6 +106,7 @@ static void rtlsdr_callback(unsigned char *buf, uint32_t len, void *ctx)
 		if (bytes_to_read > 0)
 			bytes_to_read -= len;
 	}
+	fprintf(stderr, "rtlsdr_callback() leave\n");
 }
 
 int main(int argc, char **argv)
@@ -117,7 +124,6 @@ int main(int argc, char **argv)
 	uint8_t *buffer;
 	int dev_index = 0;
 	int dev_given = 0;
-	uint32_t frequency = 100000000;
 	uint32_t samp_rate = DEFAULT_SAMPLE_RATE;
 	uint32_t out_block_size = DEFAULT_BUF_LENGTH;
 
@@ -259,6 +265,8 @@ int main(int argc, char **argv)
 		}
 	} else {
 		fprintf(stderr, "Reading samples in async mode...\n");
+		signal(SIGALRM, sighandler);
+		alarm(3); // change freq after 3 seconds
 		r = rtlsdr_read_async(dev, rtlsdr_callback, (void *)file,
 				      0, out_block_size);
 	}
